@@ -237,7 +237,7 @@ def main():
                 # assert len(answers_checkboxes) == 5
                 for answer_checkbox in answers_checkboxes:
                     output_file.write('\t')
-                    output_file.write('📌' if answer_checkbox.data == CHECK else '')
+                    output_file.write('📌' if answer_checkbox.data == UNCHECK else '')
                     
                     assert answer_checkbox.parent is not None
                     assert answer_checkbox.parent.parent is not None
