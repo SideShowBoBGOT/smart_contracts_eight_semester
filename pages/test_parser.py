@@ -15,59 +15,39 @@ JsonElementType: typing.TypeAlias = typing.Union[
     None
 ]
 
-JsonElementParantType = typing.Union[
-    dict[str, 'JsonElementType'],
-    list['JsonElementType'],
-]
-
-JsonNodeParentType = typing.Union[
-    'JsonNodeDict',
-    'JsonNodeList'
-]
-
-JsonNodeType = typing.Union[
-    'JsonNodeDict',
-    'JsonNodeList',
-    'JsonNodeStr',
-    'JsonNodeInt',
-    'JsonNodeFloat',
-    'JsonNodeBool',
-    'JsonNodeNone',
-]
-
 @dataclasses.dataclass(slots=True, frozen=True)
 class JsonNodeDict:
-    parent: typing.Optional[JsonNodeParentType]
-    data: dict[str, JsonNodeType] = dataclasses.field(default_factory=dict)
+    parent: typing.Optional['JsonNodeParentType']
+    data: dict[str, 'JsonNodeType'] = dataclasses.field(default_factory=dict)
 
 @dataclasses.dataclass(slots=True, frozen=True)
 class JsonNodeList:
-    parent: typing.Optional[JsonNodeParentType]
-    data: list[JsonNodeType] = dataclasses.field(default_factory=list)
+    parent: typing.Optional['JsonNodeParentType']
+    data: list['JsonNodeType'] = dataclasses.field(default_factory=list)
 
 @dataclasses.dataclass(slots=True, frozen=True)
 class JsonNodeStr:
     data: str
-    parent: typing.Optional[JsonNodeParentType]
+    parent: typing.Optional['JsonNodeParentType']
 
 @dataclasses.dataclass(slots=True, frozen=True)
 class JsonNodeInt:
     data: int
-    parent: typing.Optional[JsonNodeParentType]
+    parent: typing.Optional['JsonNodeParentType']
 
 @dataclasses.dataclass(slots=True, frozen=True)
 class JsonNodeFloat:
     data: float
-    parent: typing.Optional[JsonNodeParentType]
+    parent: typing.Optional['JsonNodeParentType']
 
 @dataclasses.dataclass(slots=True, frozen=True)
 class JsonNodeBool:
     data: bool
-    parent: typing.Optional[JsonNodeParentType]
+    parent: typing.Optional['JsonNodeParentType']
 
 @dataclasses.dataclass(slots=True, frozen=True)
 class JsonNodeNone:
-    parent: typing.Optional[JsonNodeParentType]
+    parent: typing.Optional['JsonNodeParentType']
 
 @dataclasses.dataclass(slots=True, frozen=True)
 class JsonNodeElementPairDict:
@@ -82,6 +62,21 @@ class JsonNodeElementPairList:
 JsonNodeElementPair = typing.Union[
     JsonNodeElementPairDict,
     JsonNodeElementPairList
+]
+
+JsonNodeParentType = typing.Union[
+    JsonNodeDict,
+    JsonNodeList
+]
+
+JsonNodeType = typing.Union[
+    JsonNodeDict,
+    JsonNodeList,
+    JsonNodeStr,
+    JsonNodeInt,
+    JsonNodeFloat,
+    JsonNodeBool,
+    JsonNodeNone,
 ]
 
 def match_build_tree(parent: JsonNodeParentType, el: JsonElementType) -> JsonNodeType:
@@ -112,24 +107,17 @@ def build_tree(json_node_element_pair: JsonNodeElementPair):
         for el in json_node_element_pair.element:
             json_node_element_pair.node.data.append(match_build_tree(json_node_element_pair.node, el))
 
-# def traverse_recurse(data: JsonElementType):
-#     if data is None:
-#         pass
-#     elif isinstance(data, dict):
-#         for k, el in data.items():
-#             # print(k)
-#             traverse_recurse(el)
-#     elif isinstance(data, list):
-#         for el in data:
-#             traverse_recurse(el)
-#     elif isinstance(data, str):
-#         pass
-#     elif isinstance(data, int):
-#         if isinstance(data, bool):
-#             pass
-#         pass
-#     else:
-#         pass
+def traverse_find_downwards_str_node(node: JsonNodeParentType, value: str) -> typing.Optional[JsonNodeStr]:
+    iterator = iter(node.data.values() if isinstance(node, JsonNodeDict) else node.data)
+    for child_node in iterator:
+        if isinstance(child_node, JsonNodeParentType):
+            found_node = traverse_find_downwards_str_node(child_node, value)
+            if found_node is not None:
+                return found_node
+        elif isinstance(child_node, JsonNodeStr):
+            if child_node.data == value:
+                return child_node
+    return None
 
 def main():
     with open('test_1.json') as file:
@@ -137,7 +125,7 @@ def main():
     root_node = JsonNodeDict(None)
     build_tree(JsonNodeElementPairDict(root_node, root_element))
 
-    print(root_node)
+    found_node = traverse_find_downwards_str_node(root_node, 'Question 1')
 
 if __name__ == '__main__':
     main()
