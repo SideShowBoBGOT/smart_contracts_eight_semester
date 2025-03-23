@@ -1,0 +1,434 @@
+governance
+Цей патерн реалізований в опензепліні, і якщо хочете подивитися, як
+він працює повністю, то вам туди. Я ж розповім про його принцип та малу
+частину. Тому що там інформація на окрему статтю.
+// SPDX-License-Identifier: MIT
+pragma solidity ^ 0.8 . 0 ;
+import "./IVotes.sol" ;
+contract Governor {
+struct ProposalVote {
+uint againstVotes ;
+uint forVotes ;
+uint abstainVotes ;
+mapping ( address = > bool ) hasVoted ;
+}
+struct Proposal {
+uint votingStarts ;
+uint votingEnds ;
+bool executed ;
+bool canceled ;
+}
+mapping ( uint256 = > Proposal ) public proposals ;
+mapping ( uint256 = > ProposalVote ) public proposalVotes ;
+enum VoteType { Against , For , Abstain }
+enum ProposalState { Pending , Active , Succeeded , Defeated ,
+Execute , Cancele }
+uint public constant VOTING_DELAY = 100 ;
+uint public constant VOTING_DURATION = 500 ;
+IVotes public immutable token ;
+constructor ( IVotes tokenAddress ) {
+token = tokenAddress ;
+}
+function _getVotes (
+address account ,
+uint256 blockNumber ,
+bytes memory
+) internal view virtual returns ( uint256 ) {
+return token . getPastVotes ( account , blockNumber ) ;
+}
+function propose (
+address targets ,
+uint values,
+bytes calldata calldatas ,
+string calldata description
+) external returns ( uint256 ) {
+require (
+_getVotes ( msg . sender , block . number - 1 , " " ) >= 0 ,
+" Governor : proposer votes not anougth "
+);
+uint256 proposalId = hashProposal (
+targets ,
+values,
+calldatas ,
+keccak256 ( bytes ( description ) )
+);
+require ( proposals [ proposalId ] . votingStarts == 0 , " proposal
+already exists " ) ;
+proposals [ proposalId ] = Proposal ( {
+votingStarts : block . timestamp + VOTING_DELAY ,
+votingEnds : block . timestamp + VOTING_DELAY +
+VOTING_DURATION ,
+executed : false ,
+canceled : false
+});
+return proposalId ;
+}
+function execute (
+address targets ,
+uint values,
+bytes calldata calldatas ,
+string calldata description
+) external returns ( bytes memory ) {
+uint256 proposalId = hashProposal (
+targets ,
+values,
+calldatas ,
+
+keccak256 ( bytes ( description ) )
+);
+require ( state ( proposalId ) == ProposalState . Succeeded , " invalid
+state " ) ;
+proposals [ proposalId ] . executed = true ;
+( bool success , bytes memory resp ) = targets . call { value : values
+} ( calldatas ) ;
+require ( success , "tx failed" ) ;
+return resp ;
+}
+function _cancel (
+address targets ,
+uint values ,
+bytes calldata calldatas ,
+string calldata description
+) internal virtual returns ( uint256 ) {
+uint256 proposalId = hashProposal (
+targets ,
+values,
+calldatas ,
+keccak256 ( bytes ( description ) )
+);
+ProposalState status = state ( proposalId ) ;
+require (
+status == ProposalState . Defeated ,
+" proposal not active "
+);
+proposals [ proposalId ] . canceled = true ;
+return proposalId ;
+}
+function _countVote (
+uint256 proposalId ,
+address account ,
+uint8 support ,
+uint256 weight ,
+bytes memory
+) internal virtual {
+ProposalVote storage proposalVote = proposalVotes [ proposalId ] ;
+require
+(
+!
+proposalVote
+.
+hasVoted
+[
+account
+]
+,
+"GovernorVotingSimple: vote already cast" ) ;
+require ( state ( proposalId ) == ProposalState . Active , " vote not
+currently active " ) ;
+uint256 weight = _getVotes ( account , proposal . votingStarts ,
+params ) ;
+if ( support == uint8 ( VoteType . Against ) ) {
+proposalVote . againtVotes += weight ;
+} else if ( support == uint8 ( VoteType . For ) ) {
+proposalVote . forVotes += weight ;
+} else if ( support == uint8 ( VoteType . Abstain ) ) {
+proposalVote . abstainVotes += weight ;
+} else {
+revert ( " invalid value for enum VoteType " ) ;
+}
+proposalVote . hasVoted [ account ] = true ;
+}
+function state ( uint proposalId ) public view returns ( ProposalState )
+{
+Proposal storage proposal = proposals [ proposalId ] ;
+
+ProposalVote storage proposalVote = proposalVotes [ proposalId ] ;
+require (proposal . votingStarts > 0 , "proposal doesnt exist" ) ;
+if ( proposal . executed ) {
+return ProposalState . Execute ;
+}
+if ( proposal . canceled ) {
+return ProposalState . Cancele ;
+}
+if ( block . timestamp < proposal . votingStarts ) {
+return ProposalState . Pending ;
+}
+if ( block . timestamp >= proposal . votingStarts &&
+proposal . votingEnds > block . timestamp ) {
+return ProposalState . Active ;
+}
+if ( proposalVote . forVotes > proposalVote . againstVotes ) {
+return ProposalState . Succeeded ;
+} else {
+return ProposalState . Defeated ;
+}
+}
+function hashProposal (
+address targets ,
+uint values ,
+bytes calldata calldatas ,
+bytes32 description
+) internal pure returns ( uint256 ) {
+return uint256 ( keccak256 ( abi . encode (
+targets ,
+values ,
+calldatas ,
+description
+)));
+}
+receive ( ) external payable { }
+}
+Принцип роботи:
+У нас є смарт-контракт A, який має функцію для виконання, але ми
+передаємо управління цим смарт-контрактом, контрактом B governance,
+який і виконуватиме обов'язки овнера смарт-контракту A. Наш СК
+governance буде працювати за принципом голосування. Тобто, якщо доста-
+тньо голосів за виконання, то транзакція виконується, якщо ні, то не вико-
+нується
+Зазвичай щоб голосувати застосовують токени ERC20 чи ERC721.
+Наприклад з ERC20: якщо у вас більше токенів, ваш голос важчий, якщо
+менше слабше. І таким чином усі власники токенів можуть голосувати за
+транзакцію.
+Я використовуватиму ERC20 токени для голосування, але нам потрі-
+бно буде не просто ERC20 стандарт, а ERC20Votes. Там реалізована сис-
+тема checkPoints, завдяки якій ми позбудемося абузу. А саме: якщо людина
+буде переводити токени з облікового запису на обліковий запис і голосу-
+вати, то вона зможе голосувати одними і тими ж токенами багато разів по-
+спіль.
+Як реалізувати ERC20Votes я не показуватиму, тому що це досить
+складно і не по темі. Ми просто імпортуємо інтерфейс і не париться.
+Перше, що нам потрібно, це структури:
+struct ProposalVote {
+uint againstVotes ;
+uint forVotes ;
+uint abstainVotes ;
+mapping ( address = > bool ) hasVoted ;
+}
+struct Proposal {
+uint votingStarts ;
+uint votingEnds ;
+bool executed ;
+bool canceled ;
+}
+ProposalVote потрібна для підрахунку голосів за, проти, нейтрально.
+Proposal потрібна для встановлення початку кінця та стану речення.
+Так само нам потрібні мапінги proposals і proposalVotes, тому що про-
+позицій може бути багато. Ключем буде id пропозиції та значення нашої
+структури відповідно.
+struct ProposalVote {
+uint againstVotes ;
+uint forVotes ;
+uint abstainVotes ;
+mapping ( address = > bool ) hasVoted ;
+}
+struct Proposal {
+uint votingStarts ;
+uint votingEnds ;
+bool executed ;
+bool canceled ;
+}
+mapping ( uint256 = > Proposal ) public proposals ;
+mapping ( uint256 = > ProposalVote ) public proposalVotes ;
+Також створимо свої типи даних enum про них докладніше пізніше
+enum VoteType { Against , For , Abstain }
+enum ProposalState { Pending , Active , Succeeded , Defeated , Execute
+, Cancele }
+Приступимо до написання функцій:
+Конструктор, який нам потрібний щоб вказати адресу токена, який
+ми будемо використовувати для голосування.
+IVotes public immutable token ;
+constructor ( IVotes tokenAddress ) {
+token = tokenAddress ;
+}
+Функція propose:
+function propose (
+address targets ,
+uint values ,
+bytes calldata calldatas ,
+string calldata description
+) external returns ( uint256 ) {
+require (
+_getVotes ( msg . sender , block . number - 1 , " " ) >= 0 ,
+" proposer votes not anougth "
+);
+uint256 proposalId = hashProposal (
+targets ,
+values ,
+calldatas ,
+keccak256 ( bytes ( description ) )
+);
+require ( proposals [ proposalId ] . votingStarts == 0 , " proposal
+already exists " ) ;
+proposals [ proposalId ] = Proposal ( {
+votingStarts : block . timestamp + VOTING_DELAY ,
+votingEnds : block . timestamp + VOTING_DELAY +
+VOTING_DURATION ,
+executed : false ,
+canceled : false
+});
+return proposalId ;
+}
+Це функція створення пропозиції.
+Перше що ми робимо, це перевіряємо, що відправник має токени для
+створення пропозиції.
+Далі ми повинні створити id нашої пропозиції на кшталт поперед-
+нього патерну, тільки ще ми утворимо його в число для зручності.
+PS можна було так само зробити і в попередньому патерні
+Функцію hashProposal напишемо пізніше.
+Далі ми перевіряємо чи існує така пропозиція чи ні. Перевірка йде по
+мапінгу proposals і виглядає чи є початок цієї пропозиції чи ні.
+І далі ми просто вказуємо цій пропозиції наші параметри початку кі-
+нця та статуси.
+Функція hashProposal:
+function hashProposal (
+address targets ,
+uint values,
+bytes calldata calldatas ,
+bytes32 description
+) internal pure returns ( uint256 ) {
+return uint256 ( keccak256 ( abi . encode (
+targets ,
+values,
+calldatas ,
+description
+)));
+}
+Це функція хешування транзакції. Все так само як минулому патерні,
+тільки в кінці перетворимо на uint256
+Функція _getVotes
+function _getVotes (
+address account ,
+uint256 blockNumber ,
+bytes memory
+) internal view virtual returns ( uint256 ) {
+return token . getPastVotes ( account , blockNumber ) ;
+}
+Тут
+ми
+використовуючи
+інтерфейс
+IVotes
+звертаємося
+до
+ERC20Votes і дізнаємося про баланс токенів на акаунті на момент даного
+блоку.
+Функція _countVote
+function _countVote (
+uint256 proposalId ,
+address account ,
+uint8 support ,
+uint256 weight
+) internal virtual {
+ProposalVote storage proposalVote = proposalVotes [ proposalId ] ;
+require ( ! proposalVote . hasVoted [ account ] , "vote already cast"
+);
+require ( state ( proposalId ) == ProposalState . Active , " vote not
+currently active " ) ;
+uint256 weight = _getVotes ( account , block . number - 1 , "" ) ;
+if ( support == uint8 ( VoteType . Against ) ) {
+proposalVote . againtVotes += weight ;
+} else if ( support == uint8 ( VoteType . For ) ) {
+proposalVote . forVotes += weight ;
+} else if ( support == uint8 ( VoteType . Abstain ) ) {
+proposalVote . abstainVotes += weight ;
+} else {
+revert ( " invalid value for enum VoteType " ) ;
+}
+proposalVote . hasVoted [ account ] = true ;
+}
+Це функція додавання голосів.
+Аргументи функції:
+proposalId - id пропозиції, account - адресу голосуючого, support - тип
+голосу (0 - за, 1 - проти, 2 - нейтрально), bytes - дані.
+Далі по id отримуємо структуру даних proposalVotes і робимо пере-
+вірку: чи проголосував даний аккаунт до цього чи ні. Далі дивимося баланс
+в даний момент у цього облікового запису і записуємо в weight. Дивимося
+який голос був отриманий і додаємо в proposalVotes його голос(weight). Ну
+і наприкінці вказуємо, що цей обліковий запис проголосував.
+По ідеї можна використовувати просто порівняння з 0,1,2, але в
+openzeppelin роблять через enum, тому вирішив показати як там.
+Функція state
+function state ( uint proposalId ) public view returns ( ProposalState ) {
+Proposal storage proposal = proposals [ proposalId ] ;
+ProposalVote storage proposalVote = proposalVotes [ proposalId ] ;
+require ( proposal . votingStarts > 0 , "proposal doesnt exist" ) ;
+if ( proposal . executed ) {
+return ProposalState . Execute ;
+}
+if ( proposal . canceled ) {
+return ProposalState . Cancele ;
+}
+if ( block . timestamp < proposal . votingStarts ) {
+return ProposalState . Pending ;
+}
+if ( block . timestamp >= proposal . votingStarts &&
+proposal . votingEnds > block . timestamp ) {
+return ProposalState . Active ;
+}
+if ( proposalVote . forVotes > proposalVote . againstVotes ) {
+return ProposalState . Succeeded ;
+} else {
+return ProposalState . Defeated ;
+}
+}
+Ця функція використовує один з нашіл enum. Перша і друга переві-
+рка необхідна у тому, щоб перевірити, що наша пропозиція ще не притво-
+рено. Далі ми перевіряємо за часом, у який момент даної пропозиції ми
+знаходимося. Якщо час менше ніж початок пропозиції, то пропозиції не
+почалося, якщо час більше ніж початок пропозиції і менше ніж кінець про-
+позиції то активно, далі головна перевірка: якщо голосів за більше то успіх
+якщо немає скасування.
+Функція execute
+function execute (
+address targets ,
+uint values ,
+bytes calldata calldatas ,
+string calldata description
+) external returns ( bytes memory ) {
+uint256 proposalId = hashProposal (
+targets ,
+values,
+calldatas ,
+keccak256 ( bytes ( description ) )
+);
+require ( state ( proposalId ) == ProposalState . Succeeded , " invalid
+state " ) ;
+proposals [ proposalId ] . executed = true ;
+( bool success , bytes memory resp ) = targets . call { value : values
+} ( calldatas ) ;
+require ( success , "tx failed" ) ;
+return resp ;
+}
+Функція, яка здійснює пропозицію
+Знову хешуємо дані, щоб отримати ID і перевіряємо стан нашої про-
+позиції. Нас влаштовує тільки випадок, коли стан пропозиції задовольня-
+вся, інакше відкат. Далі ми встановлюємо значення true для executed і ни-
+зькорівневим викликом викликаємо функцію, як у попередньому прикладі,
+тільки в calldatas ми передаємо відразу і селектор функції та повідомлення.
+PS тут можна викликати як і в минулому патерні
+Функція _cancel
+function _cancel (
+address targets ,
+uint values,
+bytes calldata calldatas ,
+string calldata description
+) internal virtual returns ( uint256 ) {
+uint256 proposalId = hashProposal (
+targets ,
+values,
+calldatas ,
+keccak256 ( bytes ( description ) )
+);
+ProposalState status = state ( proposalId ) ;
+require (
+status == ProposalState . Defeated ,
+" proposal not active "
+);
+proposals [ proposalId ] . canceled = true ;
+return proposalId ;
+}
+Тут все так само, як у execute, тільки перевірка буде на Defeated і
+якщо вона проходить, то ми встановимо відповідно, що пропозиція скасо-
+вана.
+Ось такий патерн. Щоправда, там в опензэппелін, реалізація склад-
+ніша і для загального випадку, але в основному цього достатньо.
