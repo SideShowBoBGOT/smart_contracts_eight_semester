@@ -1,55 +1,71 @@
 // Find all our documentation at https://docs.near.org
-use near_sdk::{log, near};
+
+type LoyaltySystemPoint = u32;
+
+#[near_sdk::near(serializers = [borsh])]
+struct ParticipantInfo {
+    points: LoyaltySystemPoint
+}
+
+enum LoyaltySystemStoragePrefix {
+    Participants
+}
+
 
 // Define the contract structure
-#[near(contract_state)]
-pub struct Contract {
-    greeting: String,
+#[near_sdk::near(contract_state)]
+pub struct LoyaltySystem {
+    owner_id: near_sdk::AccountId,
+    participants: near_sdk::store::LookupMap<near_sdk::AccountId, ParticipantInfo>
 }
 
 // Define the default, which automatically initializes the contract
-impl Default for Contract {
+impl Default for LoyaltySystem {
     fn default() -> Self {
         Self {
-            greeting: "Hello".to_string(),
+            owner_id: near_sdk::env::predecessor_account_id(),
+            participants: near_sdk::store::LookupMap::new(LoyaltySystemStoragePrefix::Participants as u8)
         }
     }
 }
 
-// Implement the contract structure
-#[near]
-impl Contract {
-    // Public method - returns the greeting saved, defaulting to DEFAULT_GREETING
-    pub fn get_greeting(&self) -> String {
-        self.greeting.clone()
+const YOCTO_NEAR_PER_TOKEN: u128 = near_sdk::NearToken::from_near(1).as_yoctonear();
+
+#[near_sdk::near]
+impl LoyaltySystem {
+
+    #[payable]
+    pub fn award_points(&mut self) -> near_sdk::Promise {
+        let deposit = near_sdk::env::attached_deposit().as_yoctonear();
+        near_sdk::require!(deposit >= YOCTO_NEAR_PER_TOKEN);
+
+        let participant_id = near_sdk::env::predecessor_account_id();
+        let tokens_to_award = (deposit / YOCTO_NEAR_PER_TOKEN) as LoyaltySystemPoint;
+
+        if self.participants.contains_key(&participant_id) {
+            self.participants.set(participant_id.clone(), Some(
+                ParticipantInfo {points: tokens_to_award}
+            ));
+        } else {
+            let participant_info = self.participants.get_mut(&participant_id).unwrap();
+            let result_points = participant_info.points.checked_add(tokens_to_award);
+            near_sdk::require!(result_points.is_some());
+            participant_info.points = result_points.unwrap();
+        }
+
+        let near_tokens_to_return = deposit - YOCTO_NEAR_PER_TOKEN * (tokens_to_award as u128);
+        near_sdk::Promise::new(participant_id).transfer(near_sdk::NearToken::from_yoctonear(near_tokens_to_return))
     }
 
-    // Public method - accepts a greeting, such as "howdy", and records it
-    pub fn set_greeting(&mut self, greeting: String) {
-        log!("Saving greeting: {greeting}");
-        self.greeting = greeting;
-    }
-}
+    pub fn redeem_points(&mut self, points_to_spend: u32) -> String {
+        let participant_id = near_sdk::env::predecessor_account_id();
+        let participant_info = self.participants.get_mut(&participant_id);
+        near_sdk::require!(participant_info.is_some());
+        let participant_info = participant_info.unwrap();
+        
+        near_sdk::require!(participant_info.points >= points_to_spend);
+        participant_info.points -= points_to_spend;
 
-/*
- * The rest of this file holds the inline tests for the code above
- * Learn more about Rust tests: https://doc.rust-lang.org/book/ch11-01-writing-tests.html
- */
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn get_default_greeting() {
-        let contract = Contract::default();
-        // this test did not call set_greeting so should return the default "Hello" greeting
-        assert_eq!(contract.get_greeting(), "Hello");
-    }
-
-    #[test]
-    fn set_then_get_greeting() {
-        let mut contract = Contract::default();
-        contract.set_greeting("howdy".to_string());
-        assert_eq!(contract.get_greeting(), "howdy");
+        points_to_spend.to_string()
     }
 }
