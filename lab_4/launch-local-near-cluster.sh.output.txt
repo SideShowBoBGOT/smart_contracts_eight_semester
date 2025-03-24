@@ -1,0 +1,240 @@
+(base) sideshowbobgot@localhost:~$ bash launch-local-near-cluster.sh 
+INFO[2025-03-24T02:01:59+02:00] Creating a new enclave for Starlark to run inside... 
+INFO[2025-03-24T02:02:13+02:00] Enclave 'near' created successfully          
+INFO[2025-03-24T02:02:13+02:00] Kurtosis CLI is running in a non interactive terminal. Everything will work but progress information and the progress bar will not be displayed. 
+
+Container images used in this run:
+> postgres:13.4-alpine3.14 - remotely downloaded
+> kurtosistech/near-explorer_backend:836d8d7 - remotely downloaded
+> kurtosistech/near-wallet:169ccfb61 - remotely downloaded
+> kurtosistech/near-explorer_frontend:836d8d7 - remotely downloaded
+> kurtosistech/near-indexer-for-explorer:2d66461 - remotely downloaded
+> amazon/dynamodb-local:1.20.0 - remotely downloaded
+> kurtosistech/near-contract-helper:88585e9 - remotely downloaded
+
+Printing a message
+Starting the near-package with input struct(backend_ip_address = "127.0.0.1")
+
+Printing a message
+Launching contract helper postgresql
+
+Printing a message
+Adding contract helper Posgresql DB running on port '5432'
+
+Adding service with name 'contract-helper-db' and image 'postgres:13.4-alpine3.14'
+Service 'contract-helper-db' added with service UUID '9d7447a447464920a3b6c61debd11366'
+
+Waiting for at most '10s' for service 'contract-helper-db' to reach a certain state
+Wait took 1 tries (71.860037ms in total). Assertion passed with following:
+Command returned with exit code '0' and the following output:
+--------------------
+                             List of databases
+   Name    | Owner | Encoding |  Collate   |   Ctype    | Access privileges 
+-----------+-------+----------+------------+------------+-------------------
+ near      | near  | UTF8     | en_US.utf8 | en_US.utf8 | 
+ postgres  | near  | UTF8     | en_US.utf8 | en_US.utf8 | 
+ template0 | near  | UTF8     | en_US.utf8 | en_US.utf8 | =c/near          +
+           |       |          |            |            | near=CTc/near
+ template1 | near  | UTF8     | en_US.utf8 | en_US.utf8 | =c/near          +
+           |       |          |            |            | near=CTc/near
+(4 rows)
+
+
+--------------------
+
+Executing command on service 'contract-helper-db'
+Command returned with exit code '0' and the following output:
+--------------------
+CREATE DATABASE
+
+--------------------
+
+Verifying whether two values meet a certain condition '=='
+Verification succeeded. Value is '0'.
+
+Executing command on service 'contract-helper-db'
+Command returned with exit code '0' and the following output:
+--------------------
+CREATE DATABASE
+
+--------------------
+
+Verifying whether two values meet a certain condition '=='
+Verification succeeded. Value is '0'.
+
+Executing command on service 'contract-helper-db'
+Command returned with exit code '0' and the following output:
+--------------------
+CREATE DATABASE
+
+--------------------
+
+Verifying whether two values meet a certain condition '=='
+Verification succeeded. Value is '0'.
+
+Printing a message
+Contract helper postgresql db info struct(analytics_db = "analytics", db_user_password = "near", db_username = "near", indexer_db = "indexer", private_url = struct(ip_address = "contract-helper-db", path = "", port_number = 5432, protocol = "postgres"), telemetry_db = "telemetry")
+
+Printing a message
+Launching contract helper dynamo db
+
+Printing a message
+Adding contract helper DynamoDB running on default port '8000'
+
+Adding service with name 'contract-helper-dynamo-db' and image 'amazon/dynamodb-local:1.20.0'
+Service 'contract-helper-dynamo-db' added with service UUID 'b7293ebe680846c2813113858b6d9c60'
+
+Printing a message
+Contract helper dynamodb info struct(private_url = struct(ip_address = "contract-helper-dynamo-db", path = "", port_number = 8000, protocol = "TCP"))
+
+Printing a message
+Launching indexer
+
+Printing a message
+Adding indexer service...
+
+Uploading file '/static_files/near-configs/localnet' to files artifact 'indexer-config'
+Files with artifact name 'indexer-config' uploaded with artifact UUID '3ecbb5814c5549e181926e0c51e12cf1'
+
+Adding service with name 'indexer-node' and image 'kurtosistech/near-indexer-for-explorer:2d66461'
+Service 'indexer-node' added with service UUID 'fb689fc20b9b481fbdb0a9814aef6f37'
+
+Printing a message
+Indexer launched with struct(private_rpc_url = struct(ip_address = "indexer-node", path = "", port_number = 3030, protocol = "http"), public_rpc_url = struct(ip_address = "127.0.0.1", path = "", port_number = 8332, protocol = "http"), validator_key = {"account_id": "test.near", "public_key": "ed25519:3Kuyi2DUXdoHgoaNEvCxa1m6G8xqc6Xs7WGajaqLhNmW", "secret_key": "ed25519:2ykcMLiM7vCmsSECcgfmUzihBtNdBv7v2CxNi94sNt4R8ar4xsrMMYvtsSNGQDfSRhNWXEnZvgx2wzS9ViBiS9jW"})
+
+Printing a message
+Launching contract helper
+
+Printing a message
+Adding contract helper service running on port '3000'
+
+Adding service with name 'contract-helper-service' and image 'kurtosistech/near-contract-helper:88585e9'
+Service 'contract-helper-service' added with service UUID 'bc09b7bae1e4441e85ab742c294f7c43'
+
+Printing a message
+Contract helper launchded with struct(private_url = struct(ip_address = "contract-helper-service", path = "", port_number = 3000, protocol = "http"), public_url = struct(ip_address = "127.0.0.1", path = "", port_number = 8330, protocol = "http"))
+
+Printing a message
+Launching explorer backend
+
+Printing a message
+Adding explorer backend service
+
+Adding service with name 'explorer-backend' and image 'kurtosistech/near-explorer_backend:836d8d7'
+Service 'explorer-backend' added with service UUID 'd034de351679480c9339b84189a8e7e3'
+
+Printing a message
+Explorer backend launchded with struct(private_url = struct(ip_address = "explorer-backend", path = "", port_number = 8080, protocol = "http"), public_url = struct(ip_address = "127.0.0.1", path = "", port_number = 18080, protocol = "http"))
+
+Printing a message
+Launching explorer frontend
+
+Printing a message
+Adding explorer frontend service running on port '3000'
+
+Adding service with name 'explorer-frontend' and image 'kurtosistech/near-explorer_frontend:836d8d7'
+Service 'explorer-frontend' added with service UUID '895e09a1390843ddb748c059faafe47d'
+
+Printing a message
+Explorer frontend launchded with struct(public_url = struct(ip_address = "127.0.0.1", path = "", port_number = 8331, protocol = "http"))
+
+Printing a message
+Launching wallet
+
+Printing a message
+Adding wallet service running on port '3004
+
+Printing a message
+Replacing variable 'NODE_URL' to 'http://127.0.0.1:8332' using regexp: '([,{])NODE_URL:[^,]*([,}])'
+
+Printing a message
+Replacing variable 'ACCOUNT_HELPER_URL' to 'http://127.0.0.1:8330' using regexp: '([,{])ACCOUNT_HELPER_URL:[^,]*([,}])'
+
+Printing a message
+Replacing variable 'EXPLORER_URL' to 'http://127.0.0.1:8331' using regexp: '([,{])EXPLORER_URL:[^,]*([,}])'
+
+Printing a message
+Replacing variable 'NETWORK_ID' to 'localnet' using regexp: '([,{])NETWORK_ID:[^,]*([,}])'
+
+Printing a message
+Replacing variable 'ACCOUNT_ID_SUFFIX' to 'test.near' using regexp: '([,{])ACCOUNT_ID_SUFFIX:[^,]*([,}])'
+
+Printing a message
+Replacing variable 'ACCESS_KEY_FUNDING_AMOUNT' to '3000000000000000000000000' using regexp: '([,{])ACCESS_KEY_FUNDING_AMOUNT:[^,]*([,}])'
+
+Adding service with name 'wallet' and image 'kurtosistech/near-wallet:169ccfb61'
+Service 'wallet' added with service UUID 'a6de24361567443ca5d783fc4133a813'
+
+Printing a message
+Explorer wallet struct(public_url = struct(ip_address = "127.0.0.1", path = "", port_number = 8334, protocol = "http"))
+
+Starlark code successfully run. Output was:
+{
+	"contract_helper_service_url": "http://127.0.0.1:8330",
+	"explorer_url": "http://127.0.0.1:8331",
+	"near_node_rpc_url": "http://127.0.0.1:8332",
+	"network_name": "localnet",
+	"root_validator_key": {
+		"account_id": "test.near",
+		"public_key": "ed25519:3Kuyi2DUXdoHgoaNEvCxa1m6G8xqc6Xs7WGajaqLhNmW",
+		"secret_key": "ed25519:2ykcMLiM7vCmsSECcgfmUzihBtNdBv7v2CxNi94sNt4R8ar4xsrMMYvtsSNGQDfSRhNWXEnZvgx2wzS9ViBiS9jW"
+	},
+	"wallet_url": "http://127.0.0.1:8334"
+}
+
+⭐ us on GitHub - https://github.com/kurtosis-tech/kurtosis
+INFO[2025-03-24T02:03:27+02:00] ============================================= 
+INFO[2025-03-24T02:03:27+02:00] ||          Created enclave: near          || 
+INFO[2025-03-24T02:03:27+02:00] ============================================= 
+Name:            near
+UUID:            780c4cd65b10
+Status:          RUNNING
+Creation Time:   Mon, 24 Mar 2025 02:01:59 EET
+Flags:           
+
+========================================= Files Artifacts =========================================
+UUID           Name
+3ecbb5814c55   indexer-config
+
+========================================== User Services ==========================================
+UUID           Name                        Ports                                      Status
+9d7447a44746   contract-helper-db          postgres: 5432/tcp -> 127.0.0.1:32781      RUNNING
+b7293ebe6808   contract-helper-dynamo-db   default: 8000/tcp -> 127.0.0.1:32782       RUNNING
+bc09b7bae1e4   contract-helper-service     rest: 3000/tcp -> http://127.0.0.1:8330    RUNNING
+d034de351679   explorer-backend            http: 8080/tcp -> http://127.0.0.1:18080   RUNNING
+895e09a13908   explorer-frontend           http: 3000/tcp -> http://127.0.0.1:8331    RUNNING
+fb689fc20b9b   indexer-node                gossip: 24567/tcp -> 127.0.0.1:8333        RUNNING
+                                           rpc: 3030/tcp -> http://127.0.0.1:8332     
+a6de24361567   wallet                      http: 3004/tcp -> http://127.0.0.1:8334    RUNNING
+
+============================================================ SUCCESS ================================================================================
+  ACTION Paste the following in your terminal to declare the following variables so you can use them:
+
+         export NEAR_ENV="local"
+         export NEAR_CLI_LOCALNET_NETWORK_ID="localnet"
+         export NEAR_NODE_URL="http://127.0.0.1:8332"
+         export NEAR_CLI_LOCALNET_KEY_PATH="/home/sideshowbobgot/.neartosis/2025-03-24T02.01.59/validator-key.json"
+         export NEAR_WALLET_URL="http://127.0.0.1:8334"
+         export NEAR_HELPER_URL="http://127.0.0.1:8330"
+         export NEAR_HELPER_ACCOUNT="test.near"
+         export NEAR_EXPLORER_URL="http://127.0.0.1:8331"
+  
+  ACTION Paste the following into your terminal now to use the 'local_near' command as a replacement for the NEAR CLI for connecting to your
+         local cluster (e.g. 'local_near login'):
+  
+         alias local_near='NEAR_ENV="local" NEAR_CLI_LOCALNET_NETWORK_ID="localnet" NEAR_NODE_URL="http://127.0.0.1:8332" NEAR_CLI_LOCALNET_KEY_PATH="/home/sideshowbobgot/.neartosis/2025-03-24T02.01.59/validator-key.json" NEAR_WALLET_URL="http://127.0.0.1:8334" NEAR_HELPER_URL="http://127.0.0.1:8330" NEAR_HELPER_ACCOUNT="test.near" NEAR_EXPLORER_URL="http://127.0.0.1:8331" near'
+  
+  ACTION If you want the 'local_near' command available in all your new terminal windows, add the above alias into your .bash_profile/.bashrc/.zshrc
+         file and open a new terminal window.
+  
+  ACTION To stop your cluster, run the following:
+
+         kurtosis enclave stop near
+
+  ACTION To remove your cluster, run:
+
+         kurtosis clean -a
+
+============================================================ SUCCESS ================================================================================
+(base) sideshowbobgot@localhost:~$ 
+
