@@ -11,10 +11,10 @@ enum LoyaltySystemStoragePrefix {
     Participants
 }
 
-
 // Define the contract structure
 #[near_sdk::near(contract_state)]
 pub struct LoyaltySystem {
+    
     owner_id: near_sdk::AccountId,
     participants: near_sdk::store::LookupMap<near_sdk::AccountId, ParticipantInfo>
 }
@@ -42,7 +42,7 @@ impl LoyaltySystem {
         let participant_id = near_sdk::env::predecessor_account_id();
         let tokens_to_award = (deposit / YOCTO_NEAR_PER_TOKEN) as LoyaltySystemPoint;
 
-        if self.participants.contains_key(&participant_id) {
+        if !self.participants.contains_key(&participant_id) {
             self.participants.set(participant_id.clone(), Some(
                 ParticipantInfo {points: tokens_to_award}
             ));
